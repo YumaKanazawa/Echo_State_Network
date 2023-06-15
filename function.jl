@@ -29,7 +29,7 @@ function NARMA(n,z)
     return Y
 end
 
-NMSE(y,y_h)=sum((y-y_h).^2)/sum((y).^2)#誤差関数
+NMSE(y::Array{Float64,1},y_h::Array{Float64,1})=sum((y-y_h).^2)/sum((y).^2)#誤差関数
 
 function activate(x)
     return tanh.(x)
@@ -121,8 +121,10 @@ mutable struct ESN_param
     L::Int128
 
     W_in::Matrix{Float64}
+    W_in_V::Vector{Float64}
     W_rec::Matrix{Float64}
     W_back::Matrix{Float64}
+    W_back_V::Vector{Float64}
 
     #スパース行列
     function SP_matrix(m,n,p)
@@ -130,7 +132,7 @@ mutable struct ESN_param
     end
 
     #ESP付与
-    function spector(a,W)
+    function spector(a,W)::Matrix{Float64}
         λ_max=maximum(abs.(eigvals(W)))#最大の固有値を求める
         W_return=(1/λ_max).*W
         return a.*W_return
@@ -144,14 +146,16 @@ mutable struct ESN_param
         self.L=L
         self.W_in=SP_matrix(N,K,0.0)
         self.W_rec=spector(0.9,SP_matrix(N,N,0.02))
-        self.W_back=SP_matrix(N,L,0.02)
+        self.W_back=ones(N,L)#SP_matrix(N,L,1.0)
+        self.W_back_V=ones(N)
         return self
     end
 end
 
-function Learning(X_Learn,Ans,λ,T0,Learn_time)
+
+function Learning(X_Learn::Array{Float64,2},Ans::Array{Float64,1},λ::Float64,T0::Int64,Learn_time::Int64)
     M_learn=X_Learn[T0:Learn_time,:]
-    T_learn=Ans[T0:Learn_time,:]
+    T_learn::Array{Float64,1}=Ans[T0:Learn_time]
 
     W_out=inv(M_learn'*M_learn+λ*I)*M_learn'*T_learn
     return W_out
