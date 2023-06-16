@@ -128,7 +128,15 @@ mutable struct ESN_param
 
     #スパース行列
     function SP_matrix(m,n,p)
-        return Array(sprand(m,n,p))
+        sp=Array(sprand(m,n,p))
+        for i in 1:size(sp,1)
+            for j in 1:size(sp,2)
+                if sp[i,j]!=0.0
+                    sp[i,j]=1.0
+                end
+            end
+        end
+        return sp
     end
 
     #ESP付与
@@ -147,7 +155,9 @@ mutable struct ESN_param
         self.W_in=SP_matrix(N,K,0.0)
         self.W_rec=spector(0.9,SP_matrix(N,N,0.02))
         self.W_back=ones(N,L)#SP_matrix(N,L,1.0)
-        self.W_back_V=ones(N)
+
+        self.W_back_V=ones(N)#出力が1次元の場合の重みベクトル
+        self.W_in_V=sprandn(N,0.01)#入力が1次元の場合の重みベクトル
         return self
     end
 end
