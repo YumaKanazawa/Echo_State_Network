@@ -110,7 +110,7 @@ function RK_N(F,Δt,T,yn)#y0がベクトルであると考える．
 
         yn+=(K1+2*K2+2*K3+K4)/6.0
     
-        push!(Ans,yn)
+        # push!(Ans,yn)
     end
     return Ans
 end

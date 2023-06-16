@@ -49,17 +49,17 @@ end
 
 rn::Array{Float64,1}=zeros(N)#ある時刻でのリザバーベクトル
 
-γ::Float16=1.54#大きくすれば学習誤差も下がる
-σ::Float16=0.75#分岐点
+γ::Float16=10.0#大きくすれば学習誤差も下がる
+σ::Float16=0.01#分岐点
 
 println("γ=",γ,",σ=",σ)
 
 X_ESN::Array{Float64,2}=zeros(DataLength,N)#中間層用の格納行列
 
-#=================この上までがリザバーの基本的な設定========================#
-# =リザバーの中間層の計算=#
+#=リザバーの中間層の計算=#
 Δt::Float64=0.02#17.0/DataLength
 
+#=================この上までがリザバーの基本的な設定========================#
 function RK_4()
     for n in 1:Learn_time
         X_ESN[n:n,:]=rn#時刻nにおける方程式の解
@@ -130,68 +130,4 @@ T=Learn_time
 plot(Pred*Wout,label=("ESN"),title="Lorenz,NMSE="*string(err_NMSE),xlims=(T-500,T+500),ylims=(minimum(y),maximum(y)))
 plot!(y)
 # savefig("Lolenz.png")
-
-
-# #===================分岐解析=====================#
-# function δ(i::Int64,j::Int64)
-#     ret=0.0;
-#     if i==j
-#         ret=1.0
-#     else
-#         ret=0.0
-#     end
-#     return ret
-# end
-
-# function Jacobi_real_eigvals(σ::Float64,γ::Float64)
-#     rn::Array{Float64,1}=zeros(N)
-#     for n in 1:10^4
-#         yn=y[n]
-
-#         K1::Array{Float64,1}=γ*Δt*(-rn+tanh.(W_res*rn+σ*W_back*yn))
-
-#         K2::Array{Float64,1}=γ*Δt*((-rn+K1/2)+tanh.((W_res*(rn+K1/2))+σ*(W_back*yn)))
-
-#         K3::Array{Float64,1}=γ*Δt*(-(rn+K2/2)+tanh.((W_res*(rn+K2/2))+σ*(W_back*yn)))
-
-#         K4::Array{Float64,1}=γ*Δt*(-(rn+K3)+tanh.((W_res*(rn+K3))+σ*(W_back*yn)))
-        
-#         rn+=(K1+2.0*K2+2.0*K3+K4)/6.0
-#     end
-
-#     J::Array{Float64,2}=zeros(N,N)
-#     s=W_res*rn+σ*W_back*y[DataLength]
-#     for i in 1:N
-#         for j in 1:N
-#             J[i,j]=γ*(δ(i,j)+W_res[i,j]/cosh(s[i]))
-#         end
-#     end
-
-#     # #全ての固有値が正であるか，負であるか(安定性解析)
-#     # eigJ::Array{Float64,1}=real.(eigvals(J))
-#     # how_many_positive::Int64=0
-#     # for i in 1:length(eigJ)
-#     #     if eigJ[i]>0.0
-#     #         global how_many_positive+=1
-#     #     end
-#     # end
-
-#     return real.(eigvals(J))
-# end
-
-# Σ::Float64=0.0
-# while Σ<10.0
-#     #全ての固有値が正であるか，負であるか(安定性解析)
-#     eigJ::Array{Float64,1}=Jacobi_real_eigvals(Σ,10.0)
-#     how_many_positive::Int64=0
-#     for i in 1:length(eigJ)
-#         if eigJ[i]>0.0
-#             how_many_positive+=1
-#         end
-#     end
-#     println("σ=",Σ,",",how_many_positive)
-#     global Σ+=0.001
-# end
-
-
 
