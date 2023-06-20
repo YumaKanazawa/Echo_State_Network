@@ -1,74 +1,35 @@
-include("function.jl")
-using Plots
+include("ESN_setting.jl")
 
-#=============教師データ==============#
-# max=1.01
-# min=0.99
-
-# u=rand(Uniform(min,max),DataLength,K)#一様乱数を取得する
-# n=2
-# y=NARMA(n,u)
-
-y::Array{Float64,1}=tryparse.(Float64, read_file("../Basic ESN/data/MackeyGlass_t17.txt"))
-# y=u
-
-# u=[sin(0.1*i) for i in 1:DataLength]
-# y::Array{Float64,1}=u
-
-#各データのスケーリング
-# y=y.-(mean(y)-1.0)
-#===================================#
-
-
-#==================各種パラメータ============#
-DataLength::Int64=(10000)#length(y)#データの総数
-Tr::Int64=4000#学習用データの長さ
-T0::Int64=100#過渡時間
-
-Learn_time::Int64=T0+Tr#学習に利用する時間
-test_time::Int64=600#テストに利用するデータの長さ
-
-# 各種定数の定義
-K::Int64=1#入力のデータ次元
-L::Int64=1#出力のデータ次元
-N::Int64=600#内部ユニットの個数 Nが小さいと，疎行列の作成ができなくなる(非ゼロの割合で決めているので)
-esn=ESN_param(K,N,L)
-
-W_in::Array{Float64,2}=esn.W_in
-
-W_res::Array{Float64,2}=esn.W_rec
-
-W_back::Array{Float64,1}=esn.W_back_V
-#===============================#
-
-Lolenz=RK_N(Lolenz_,0.02,DataLength,[1,1,1])
-y::Array{Float64,1}=zeros(DataLength)
-for i in 1:DataLength
-    y[i]=Lolenz[i][1]
-end
-
-rn::Array{Float64,1}=zeros(N)#ある時刻でのリザバーベクトル
-
-γ::Float16=10.0#大きくすれば学習誤差も下がる
-σ::Float16=0.01#分岐点
-
-println("γ=",γ,",σ=",σ)
-
-X_ESN::Array{Float64,2}=zeros(DataLength,N)#中間層用の格納行列
-
-#=リザバーの中間層の計算=#
-Δt::Float64=0.02#17.0/DataLength
+λ::Float64=10^-6
 
 #=================この上までがリザバーの基本的な設定========================#
-function RK_4()
-    for n in 1:Learn_time
-        X_ESN[n:n,:]=rn#時刻nにおける方程式の解
+function pred_ret(γ,σ)
+    local X_ESN::Array{Float64,2}=zeros(DataLength,N)#中間層用の格納行列
+    local Ans::Array{Float64,1}=zeros(DataLength)#正解データの格納
+    rn::Array{Float64,1}=zeros(N)#リザバーの初期値
+    
+    k=1#格納する位置の参照
+    n=1
+    while k<=Learn_time
 
+        if n==k*τ#Δtのτ倍(例:Δt=0.001の時，0.02(=20*Δt)ごとにデータを格納していく)
+            k+=1
+        end
+
+        X_ESN[n:n,:]=rn#時刻nにおける方程式の解
+        Ans[n]=y[n]
+
+        #時間に応じて予測するデータの反映の仕方を決める
+        #学習用のデータの反映
         if n==1
             yn=0.0
         else
             yn=y[n-1]
         end
+
+        # yn=[n]
+
+        println("k=",k,",n=",n)
 
         K1::Array{Float64,1}=γ*Δt*(-rn+tanh.(W_res*rn+σ*W_back*yn))
 
@@ -78,56 +39,104 @@ function RK_4()
 
         K4::Array{Float64,1}=γ*Δt*(-(rn+K3)+tanh.((W_res*(rn+K3))+σ*(W_back*yn)))
 
-        global rn+=(K1+2.0*K2+2.0*K3+K4)/6.0
+        rn+=(K1+2.0*K2+2.0*K3+K4)/6.0
+        n+=1
     end
-end
 
-RK_4()
-Learn_M::Array{Float64,2}=hcat(ones(DataLength),X_ESN)#バイアス項の追加
+    Learn_M::Array{Float64,2}=hcat(ones(DataLength),X_ESN)
+    Wout::Array{Float64,1}=Learning(Learn_M,Ans,λ,1,Learn_time)
+    
+    println("LearnErr=",NMSE(y[T0:Learn_time],(Learn_M*Wout)[T0:Learn_time]))
 
-λ::Float64=10^-6
-Wout=Learning(Learn_M,y,λ,T0,Learn_time)
+    while k<=test_time
 
-err=NMSE(y[T0:Learn_time],Learn_M[T0:Learn_time,:]*Wout)
-println("err=",err)
-# plot(Learn_M[T0:Learn_time,:]*Wout,xlim=(T0+100,T0+200))
-# plot!(y[T0:Learn_time,:])
+        #予測のデータ反映について
+        if k==Learn_time+1
+            yn=y[n-1]
+        else
+            yn=hcat(1.0,rn')*Wout
+        end
 
-#============================予測値の計算==================================#
-r_new=X_ESN[Learn_time:Learn_time,:]'#学習の最終時刻のデータをベクトル化
-function RK_4_test()
-    for n in Learn_time+1:DataLength
-        # if n==Learn_time+1
-        #     yn=y[n-1]
-        # else
-        yn=(hcat(1.0,r_new')*Wout)[1]
+        # if n==k*τ
+            X_ESN[k:k,:]=rn'#時刻nにおける方程式の解
+            # Ans[k]=yn
+            k+=1
         # end
 
-        K1=γ*Δt*(-r_new+tanh.(W_res*r_new+W_back*yn))
+        println("k=",k,",n=",n)
 
-        K2=γ*Δt*(-(r_new+K1/2)+tanh.(W_res*(r_new+K1/2)+σ*W_back*yn))
+        K1::Array{Float64,1}=γ*Δt*(-rn+tanh.(W_res*rn+σ*W_back*yn))
 
-        K3=γ*Δt*(-(r_new+K2/2)+tanh.(W_res*(r_new+K2/2)+σ*W_back*yn))
+        K2::Array{Float64,1}=γ*Δt*((-rn+K1/2)+tanh.((W_res*(rn+K1/2))+σ*(W_back*yn)))
 
-        K4=γ*Δt*(-(r_new+K3)+tanh.(W_res*(r_new+K3)+σ*W_back*yn))
+        K3::Array{Float64,1}=γ*Δt*(-(rn+K2/2)+tanh.((W_res*(rn+K2/2))+σ*(W_back*yn)))
 
-        global r_new+=(K1+2.0*K2+2.0*K3+K4)/6.0
+        K4::Array{Float64,1}=γ*Δt*(-(rn+K3)+tanh.((W_res*(rn+K3))+σ*(W_back*yn)))
 
-        X_ESN[n:n,:]=r_new#時刻nにおける方程式の解
+        rn+=(K1+2.0*K2+2.0*K3+K4)/6.0
+        n+=1
     end
+
+    T=Learn_time
+    Pred=hcat(ones(DataLength),X_ESN)
+
+    plot(Pred*Wout,xlim=(T-1000,T+1000),ylim=(minimum(y),maximum(y)),title=("σ="*string(σ)*",γ="*string(γ)))
+    plot!(y)
+    savefig("image/σ="*string(σ)*".png")
+
+    println("testErr=",NMSE(y[Learn_time:test_time],(Pred*Wout)[Learn_time:test_time]))
 end
 
-RK_4_test()
 
-Pred=hcat(ones(DataLength),X_ESN)
-# Pred=X_ESN
+function ESP(γ,σ,rn::Array{Float64,1},r1::Array{Float64,1})
+    println("γ=",γ,",σ=",σ)
+    n=1
+    T=5000
+    while n<=T
+        #時間に応じて予測するデータの反映の仕方を決める
+        #学習用のデータの反映
+        if n==1
+            yn=0.0
+        else
+            yn=y[n-1]
+        end
 
-err_NMSE=NMSE(y[Learn_time+1:DataLength],Pred[Learn_time+1:DataLength,:]*Wout)
-println("Err=",err_NMSE)
+        # yn=y[n]
+
+        #================初期値rnにおける数値解===================#
+        K1::Array{Float64,1}=γ*Δt*(-rn+tanh.(W_res*rn+σ*W_back*yn))
+
+        K2::Array{Float64,1}=γ*Δt*((-rn+K1/2)+tanh.((W_res*(rn+K1/2))+σ*(W_back*yn)))
+
+        K3::Array{Float64,1}=γ*Δt*(-(rn+K2/2)+tanh.((W_res*(rn+K2/2))+σ*(W_back*yn)))
+
+        K4::Array{Float64,1}=γ*Δt*(-(rn+K3)+tanh.((W_res*(rn+K3))+σ*(W_back*yn)))
+
+        rn+=(K1+2.0*K2+2.0*K3+K4)/6.0
+        #======================================================#
+
+        #================初期値r1における数値解===================#
+        K1_1::Array{Float64,1}=γ*Δt*(-r1+tanh.(W_res*r1+σ*W_back*yn))
+
+        K2_1::Array{Float64,1}=γ*Δt*((-r1+K1_1/2)+tanh.((W_res*(r1+K1_1/2))+σ*(W_back*yn)))
+
+        K3_1::Array{Float64,1}=γ*Δt*(-(r1+K2_1/2)+tanh.((W_res*(r1+K2_1/2))+σ*(W_back*yn)))
+
+        K4_1::Array{Float64,1}=γ*Δt*(-(r1+K3_1)+tanh.((W_res*(r1+K3_1))+σ*(W_back*yn)))
+
+        r1+=(K1_1+2.0*K2_1+2.0*K3_1+K4_1)/6.0
+        #======================================================#
+
+        println("n=",n,",Err=",NMSE(rn,r1))#時刻nにおける異なる初期値の誤差
+
+        n+=1
+    end 
+end
+
+pred_ret(γ,σ)
 
 
-T=Learn_time
-plot(Pred*Wout,label=("ESN"),title="Lorenz,NMSE="*string(err_NMSE),xlims=(T-500,T+500),ylims=(minimum(y),maximum(y)))
-plot!(y)
-# savefig("Lolenz.png")
+# init::Array{Float64,1}=ones(N)#初期値
+# init1::Array{Float64,1}=[10.0 for i in 1:N]#初期値からの微妙なずれ
 
+# ESP(10.0,0.012,init,init1)

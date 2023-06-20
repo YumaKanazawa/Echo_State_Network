@@ -6,7 +6,7 @@
 #define r 28.0
 #define b 8.0/3.0
 
-#define dt 0.02
+#define dt 0.01
 #define tmax 100
 
 double f(double t,double x,double y,double z){
@@ -22,7 +22,7 @@ double h(double t,double x,double y,double z){
 }
 
 int main(void){
-    double x=0.0,y=1,z=2;
+    double x=1,y=1,z=1;
     FILE *fp;
     fp=fopen("Lolentz.txt","w");
 
@@ -50,8 +50,7 @@ int main(void){
         z+=(M1+2.0*M2+2.0*M3+M4)/6.0;
 
         printf("x=%f,y=%f,z=%f\n",x,y,z);
-        // fprintf(fp,"%f %f %f\n",x,y,z);
-        fprintf(fp,"%f\n",x);
+        fprintf(fp,"%f %f %f\n",x,y,z);
     }
     fclose(fp);
 

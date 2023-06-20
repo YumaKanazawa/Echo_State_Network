@@ -3,6 +3,15 @@ using Random,Distributions
 
 Random.seed!(0)#シードの固定
 #=============================関数領域=====================================#
+
+function norm(x::Array{Float64,1},p::Float64)
+    ret=0.0
+    for i in 1:length(x)
+        ret+=(x[i])^p
+    end
+    return (ret/length(x))^(1/p)
+end
+
 # NARMAモデルの構成
 function NARMA(n,z)
     Y=zeros(Length,L)
@@ -40,10 +49,10 @@ function Newton(func)
     x=0.5#rand()#解の初期値
     df=(func(x+h)-func(x-h))/(2*h)
 
-    for i in 1:10^5
+    while true
 
         # print(i,",",(func(x)/df),",")
-        if abs(func(x)/df)<0.01
+        if abs(func(x)/df)<10^-5
             break
         end
         x_new=x-0.01*func(x)/df
@@ -132,7 +141,7 @@ mutable struct ESN_param
         for i in 1:size(sp,1)
             for j in 1:size(sp,2)
                 if sp[i,j]!=0.0
-                    sp[i,j]=1.0
+                    sp[i,j]=rand(Uniform(-1,1),1)[1]
                 end
             end
         end
@@ -162,16 +171,27 @@ mutable struct ESN_param
     end
 end
 
-
 function Learning(X_Learn::Array{Float64,2},Ans::Array{Float64,1},λ::Float64,T0::Int64,Learn_time::Int64)
-    M_learn=X_Learn[T0:Learn_time,:]
-    T_learn::Array{Float64,1}=Ans[T0:Learn_time]
+    M_learn::Array{Float64,2}=zeros(size(X_Learn,1),size(X_Learn,2))#X_Learn[T0:Learn_time,:]#学習に使うデータを上手に切り出す必要がある．N+1はバイアスを含めた次元
+    T_learn::Array{Float64,1}=zeros(size(X_Learn,1))
 
-    W_out=inv(M_learn'*M_learn+λ*I)*M_learn'*T_learn
+    #X_learn,Ansをτごとに切り出し
+    k=1
+    for i in 1:DataLength
+        if i==k*τ#τごとに切り出して学習を行う
+            M_learn[k:k,:]=X_Learn[i:i,:]
+            T_learn[k]=Ans[i]
+            k+=1
+        end
+    end
+
+    use_learn=M_learn[T0:Learn_time,:]
+    use_T=T_learn[T0:Learn_time]
+
+    W_out=inv(use_learn'*use_learn+λ*I)*use_learn'*use_T
+    
     return W_out
 end
-
-
 
 
 #==========================Akaike Infomation Critism(λ's determine method)====================================#
@@ -238,9 +258,9 @@ p=10.0
 r=28.0
 b=8.0/3.0
 
-function Lolenz_(t,xn...)
+function Lolenz_(t,xn)
     #x...とすると行列として定義される
-    x=xn[1]
+    x=xn
     ret=[0.0 for i in 1:3]
     ret[1]=-p*x[1]+p*x[2]
     ret[2]=-x[1]*x[3]+r*x[1]-x[2]
