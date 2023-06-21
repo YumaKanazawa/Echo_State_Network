@@ -9,7 +9,7 @@ using Plots
 # n=2
 # y=NARMA(n,u)
 
-y::Array{Float64,1}=tryparse.(Float64, read_file("../Basic ESN/data/MackeyGlass_t17.txt"))
+# y::Array{Float64,1}=tryparse.(Float64, read_file("../Basic ESN/data/MackeyGlass_t17.txt"))
 # y=u
 
 # u=[sin(0.1*i) for i in 1:DataLength]
@@ -24,7 +24,7 @@ y::Array{Float64,1}=tryparse.(Float64, read_file("../Basic ESN/data/MackeyGlass_
 τ=20#データを取る間隔
 Tr::Int64=3000#学習用データの長さ
 T0::Int64=100#過渡時間
-Learn_time::Int64=3000#T0+Tr#学習に利用する時間
+Learn_time::Int64=T0+Tr#学習に利用する時間
 test_time::Int64=Learn_time+2000#テストに利用するデータの長さ
 
 #=======シミュレーションに利用するデータの長さ=======#

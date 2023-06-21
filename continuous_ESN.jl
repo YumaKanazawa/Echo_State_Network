@@ -44,24 +44,23 @@ function pred_ret(γ,σ)
     end
 
     Learn_M::Array{Float64,2}=hcat(ones(DataLength),X_ESN)
-    Wout::Array{Float64,1}=Learning(Learn_M,Ans,λ,1,Learn_time)
-    
-    println("LearnErr=",NMSE(y[T0:Learn_time],(Learn_M*Wout)[T0:Learn_time]))
+    Wout::Array{Float64,1}=Learning(Learn_M,Ans,λ,T0,Learn_time)
 
     while k<=test_time
-
+        
         #予測のデータ反映について
-        if k==Learn_time+1
-            yn=y[n-1]
-        else
-            yn=hcat(1.0,rn')*Wout
-        end
+        # if k==Learn_time+1
+        #     yn=y[n-1]
+        # else
+        #     yn=hcat(1.0,rn')*Wout
+        # end
+        yn=hcat(1.0,rn')*Wout
 
-        # if n==k*τ
-            X_ESN[k:k,:]=rn'#時刻nにおける方程式の解
+        X_ESN[n:n,:]=rn'#時刻nにおける方程式の解
+        if n==k*τ
             # Ans[k]=yn
             k+=1
-        # end
+        end
 
         println("k=",k,",n=",n)
 
@@ -79,12 +78,13 @@ function pred_ret(γ,σ)
 
     T=Learn_time
     Pred=hcat(ones(DataLength),X_ESN)
-
-    plot(Pred*Wout,xlim=(T-1000,T+1000),ylim=(minimum(y),maximum(y)),title=("σ="*string(σ)*",γ="*string(γ)))
+    plot(Pred*Wout,xlim=(τ*T,τ*(T+500)),ylim=(minimum(y),maximum(y)),title=("τ="*string(τ)*",σ="*string(σ)*",γ="*string(γ)))
     plot!(y)
     savefig("image/σ="*string(σ)*".png")
 
-    println("testErr=",NMSE(y[Learn_time:test_time],(Pred*Wout)[Learn_time:test_time]))
+    println("LearnErr=",NMSE(y[T0:Learn_time],(Learn_M*Wout)[T0:Learn_time]))
+    println("testErr=",NMSE(y[Learn_time:DataLength],(Pred*Wout)[Learn_time:DataLength]))
+    
 end
 
 
@@ -133,7 +133,7 @@ function ESP(γ,σ,rn::Array{Float64,1},r1::Array{Float64,1})
     end 
 end
 
-pred_ret(γ,σ)
+pred_ret(10.0,0.014)
 
 
 # init::Array{Float64,1}=ones(N)#初期値
