@@ -4,7 +4,6 @@ include("ESN_setting.jl")
 #=リアプノフ指数の計算=#
 function Lyapnov(γ,σ)
     println("γ=",γ,",σ=",σ)
-    Δt=0.01#時間ステップ
     T=1000#反復回数
     #時刻nにおけるJacobi行列
     xn::Array{Float64,1}=zeros(N)
@@ -40,7 +39,6 @@ end
 #=リアプノフ指数の計算=#
 function Lyapnov_lorentz(r)
     println("r=",r)
-    Δt=0.01#時間ステップ
     T=10000#反復回数
     #時刻nにおけるJacobi行列
     xn::Array{Float64,1}=[10.0,10.0,10.0]
@@ -97,4 +95,4 @@ end
 Λ=[r for r in 18.0:0.01:26.0]
 plotting=[Lyapnov_lorentz(r) for r in 18.0:0.01:26.0]
 
-plot(Λ,plotting)
+# plot(Λ,plotting)

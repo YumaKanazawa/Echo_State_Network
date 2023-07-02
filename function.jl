@@ -1,7 +1,8 @@
 using LinearAlgebra,SparseArrays
 using Random,Distributions
 
-Random.seed!(0)#シードの固定
+# Random.seed!(0)#シードの固定
+ρ::Float64=0.9
 #=============================関数領域=====================================#
 
 function norm(x::Array{Float64,1},p::Float64)
@@ -148,6 +149,17 @@ mutable struct ESN_param
         return sp
     end
 
+    #スパースベクトル
+    function SP_vector(n,p)
+        sp=Array(sprand(n,p))
+        for i in 1:length(sp)
+            if sp[i]!=0.0
+                sp[i]=rand(Uniform(-1,1),1)[1]
+            end
+        end
+        return sp
+    end
+
     #ESP付与
     function spector(a,W)::Matrix{Float64}
         λ_max=maximum(abs.(eigvals(W)))#最大の固有値を求める
@@ -162,10 +174,10 @@ mutable struct ESN_param
         self.K=K
         self.L=L
         self.W_in=SP_matrix(N,K,0.0)
-        self.W_rec=spector(0.9,SP_matrix(N,N,0.02))
+        self.W_rec=spector(ρ,SP_matrix(N,N,0.02))
         self.W_back=ones(N,L)#SP_matrix(N,L,1.0)
 
-        self.W_back_V=ones(N)#出力が1次元の場合の重みベクトル
+        self.W_back_V=rand(Uniform(-1,1),N)#出力が1次元の場合の重みベクトル
         self.W_in_V=sprandn(N,0.01)#入力が1次元の場合の重みベクトル
         return self
     end
@@ -177,7 +189,7 @@ function Learning(X_Learn::Array{Float64,2},Ans::Array{Float64,1},λ::Float64,T0
 
     #X_learn,Ansをτごとに切り出し
     k=1
-    for i in 1:DataLength
+    for i in 1:Learn_time*τ
         if i==k*τ#τごとに切り出して学習を行う
             M_learn[k:k,:]=X_Learn[i:i,:]
             T_learn[k]=Ans[i]
@@ -255,10 +267,10 @@ end
 
 
 p=10.0
-r=28.0
+# r=28.0
 b=8.0/3.0
 
-function Lolenz_(t,xn)
+function Lolenz_(t,xn,r)
     #x...とすると行列として定義される
     x=xn
     ret=[0.0 for i in 1:3]

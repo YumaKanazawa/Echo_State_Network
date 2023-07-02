@@ -3,7 +3,7 @@ include("ESN_setting.jl")
 λ::Float64=10^-6
 
 #=================この上までがリザバーの基本的な設定========================#
-function pred_ret(γ,σ)
+function training(γ,σ)
     local X_ESN::Array{Float64,2}=zeros(DataLength,N)#中間層用の格納行列
     local Ans::Array{Float64,1}=zeros(DataLength)#正解データの格納
     rn::Array{Float64,1}=zeros(N)#リザバーの初期値
@@ -21,19 +21,19 @@ function pred_ret(γ,σ)
 
         #時間に応じて予測するデータの反映の仕方を決める
         #学習用のデータの反映
-        if n==1
-            yn=0.0
-        else
-            yn=y[n-1]
-        end
+        # if n==1
+        #     yn=0.0
+        # else
+        #     yn=y[n-1]
+        # end
 
-        # yn=[n]
+        yn=y[n]
 
-        println("k=",k,",n=",n)
+        println("L:k=",k,",n=",n,",後:",Learn_time*τ-n)
 
         K1::Array{Float64,1}=γ*Δt*(-rn+tanh.(W_res*rn+σ*W_back*yn))
 
-        K2::Array{Float64,1}=γ*Δt*((-rn+K1/2)+tanh.((W_res*(rn+K1/2))+σ*(W_back*yn)))
+        K2::Array{Float64,1}=γ*Δt*(-(rn+K1/2)+tanh.((W_res*(rn+K1/2))+σ*(W_back*yn)))
 
         K3::Array{Float64,1}=γ*Δt*(-(rn+K2/2)+tanh.((W_res*(rn+K2/2))+σ*(W_back*yn)))
 
@@ -43,30 +43,33 @@ function pred_ret(γ,σ)
         n+=1
     end
 
-    Learn_M::Array{Float64,2}=hcat(ones(DataLength),X_ESN)
+    Learn_M::Array{Float64,2}=hcat(ones(DataLength),X_ESN,X_ESN.^2)
+
     Wout::Array{Float64,1}=Learning(Learn_M,Ans,λ,T0,Learn_time)
 
-    while k<=test_time
-        
+    # k=1
+    while n<=DataLength
         #予測のデータ反映について
-        # if k==Learn_time+1
-        #     yn=y[n-1]
+        # if n==Learn_time*τ+1
+        #     yn=y[n]
         # else
-        #     yn=hcat(1.0,rn')*Wout
+        #     yn::Float64=hcat(1.0,rn',rn'.^2)⋅Wout
         # end
-        yn=hcat(1.0,rn')*Wout
 
-        X_ESN[n:n,:]=rn'#時刻nにおける方程式の解
-        if n==k*τ
-            # Ans[k]=yn
-            k+=1
-        end
+        yn::Float64=hcat(1.0,rn',rn'.^2)⋅Wout
 
-        println("k=",k,",n=",n)
+        X_ESN[n:n,:]=rn#時刻nにおける方程式の解
+
+        # if n==k*τ
+        #     # Ans[k]=yn
+        #     k+=1
+        # end
+
+        println("T:n=",n,",Err=",abs(y[n]-yn))
 
         K1::Array{Float64,1}=γ*Δt*(-rn+tanh.(W_res*rn+σ*W_back*yn))
 
-        K2::Array{Float64,1}=γ*Δt*((-rn+K1/2)+tanh.((W_res*(rn+K1/2))+σ*(W_back*yn)))
+        K2::Array{Float64,1}=γ*Δt*(-(rn+K1/2)+tanh.((W_res*(rn+K1/2))+σ*(W_back*yn)))
 
         K3::Array{Float64,1}=γ*Δt*(-(rn+K2/2)+tanh.((W_res*(rn+K2/2))+σ*(W_back*yn)))
 
@@ -76,15 +79,19 @@ function pred_ret(γ,σ)
         n+=1
     end
 
-    T=Learn_time
-    Pred=hcat(ones(DataLength),X_ESN)
-    plot(Pred*Wout,xlim=(τ*T,τ*(T+500)),ylim=(minimum(y),maximum(y)),title=("τ="*string(τ)*",σ="*string(σ)*",γ="*string(γ)))
+    T=Learn_time*τ
+    Pred=hcat(ones(DataLength),X_ESN,X_ESN.^2)
+
+    # err_p=NMSE(y,pred)
+    err=NMSE(y[Learn_time*τ:DataLength],(Pred*Wout)[Learn_time*τ:DataLength])
+
+    println("LearnErr=",NMSE(y[T0*τ:Learn_time*τ],(Pred*Wout)[T0*τ:Learn_time*τ]))
+    println("LearnErr=",NMSE(y[Learn_time*τ:DataLength],(Pred*Wout)[Learn_time*τ:DataLength]))
+    plot(Pred*Wout,xlim=(T,DataLength),ylim=(minimum(y),maximum(y)),title=("τ="*string(τ)*",σ="*string(σ)*",γ="*string(γ)*",Err="*string(err)))
     plot!(y)
     savefig("image/σ="*string(σ)*".png")
 
-    println("LearnErr=",NMSE(y[T0:Learn_time],(Learn_M*Wout)[T0:Learn_time]))
-    println("testErr=",NMSE(y[Learn_time:DataLength],(Pred*Wout)[Learn_time:DataLength]))
-    
+    # return (Pred*Wout)[T:DataLength]
 end
 
 
@@ -133,7 +140,9 @@ function ESP(γ,σ,rn::Array{Float64,1},r1::Array{Float64,1})
     end 
 end
 
-pred_ret(10.0,0.014)
+
+#=周期解の確認=#
+training(10.0,0.012)
 
 
 # init::Array{Float64,1}=ones(N)#初期値

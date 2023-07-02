@@ -20,15 +20,17 @@ using Plots
 #===================================#
 
 
+Δt::Float64=0.001#数値計算の刻み幅
+
 #=================各種パラメータ=================#
 τ=20#データを取る間隔
 Tr::Int64=3000#学習用データの長さ
 T0::Int64=100#過渡時間
 Learn_time::Int64=T0+Tr#学習に利用する時間
-test_time::Int64=Learn_time+2000#テストに利用するデータの長さ
+test_time::Int64=10^4#テストに利用するデータの長さ
 
 #=======シミュレーションに利用するデータの長さ=======#
-DataLength::Int64=τ*(test_time)#length(y)#データの総数
+DataLength::Int64=τ*Learn_time+test_time#length(y)#データの総数
 
 # 各種定数の定義
 K::Int64=1#入力のデータ次元
@@ -45,19 +47,19 @@ W_back::Array{Float64,1}=esn.W_back_V
 
 #=ローレンツアトラクタの計算=#
 #=リザバーの中間層の計算=#
-Δt::Float64=0.001#17.0/DataLength
 
 Lolenz=RK_N(Lolenz_,Δt,DataLength,[1,1,1])
 y::Array{Float64,1}=zeros(DataLength)
 for i in 1:DataLength
-    y[i]=Lolenz[i][1]
+    # l=rand(1:3)
+    y[i]=Lolenz[i][3]
     #y[i]=y[i]/abs(y[i])#大きさを1に正規化
 end
 
 γ::Float64=10.0#大きくすれば学習誤差も下がる
 σ::Float64=0.012#分岐点
 
-println("γ=",γ,",σ=",σ)
+# println("γ=",γ,",σ=",σ)
 #=================この上までがリザバーの基本的な設定========================#
 
 function δ(i::Int64,j::Int64)
