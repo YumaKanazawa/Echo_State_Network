@@ -1,7 +1,7 @@
 using LinearAlgebra,SparseArrays
-using Random,Distributions
+using Random,Distributions,Statistics
 
-# Random.seed!(0)#シードの固定
+Random.seed!(0)#シードの固定
 ρ::Float64=0.9
 #=============================関数領域=====================================#
 
@@ -142,7 +142,9 @@ mutable struct ESN_param
         for i in 1:size(sp,1)
             for j in 1:size(sp,2)
                 if sp[i,j]!=0.0
+                    # sp[i,j]=1
                     sp[i,j]=rand(Uniform(-1,1),1)[1]
+                    # sp[i,j]=rand(Bernoulli(0.5),1)[1]
                 end
             end
         end
@@ -154,6 +156,7 @@ mutable struct ESN_param
         sp=Array(sprand(n,p))
         for i in 1:length(sp)
             if sp[i]!=0.0
+                # sp[i]=1.0
                 sp[i]=rand(Uniform(-1,1),1)[1]
             end
         end
@@ -178,7 +181,7 @@ mutable struct ESN_param
         self.W_back=ones(N,L)#SP_matrix(N,L,1.0)
 
         self.W_back_V=rand(Uniform(-1,1),N)#出力が1次元の場合の重みベクトル
-        self.W_in_V=sprandn(N,0.01)#入力が1次元の場合の重みベクトル
+        self.W_in_V=sprandn(N,0.0)#入力が1次元の場合の重みベクトル
         return self
     end
 end
@@ -267,10 +270,10 @@ end
 
 
 p=10.0
-# r=28.0
+r=28.0
 b=8.0/3.0
 
-function Lolenz_(t,xn,r)
+function Lolenz_(t,xn)
     #x...とすると行列として定義される
     x=xn
     ret=[0.0 for i in 1:3]
@@ -285,5 +288,16 @@ function bane(t,xn...)
     ret=[0.0 for i in 1:2]
     ret[1]=-x[2]
     ret[2]=x[1]
+    return ret
+end
+
+
+function δ(i::Int64,j::Int64)
+    ret=0.0;
+    if i==j
+        ret=1.0
+    else
+        ret=0.0
+    end
     return ret
 end
