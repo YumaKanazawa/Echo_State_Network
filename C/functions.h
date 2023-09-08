@@ -19,6 +19,11 @@ typedef struct CRS{
   int A_l;//non-zero要素の個数
   int ia_l;//iaの長さ
   int ja_l;//jaの長さ
+
+  /*ベクトルバージョンの要素*/
+  int M_v;//non-zeroの長さ
+  double *A_v;//non-zero要素の配列
+  int *i_av;//non-zero要素の位置が入った配列
 }CRS_t;
 
 
@@ -29,6 +34,9 @@ void free_CRS(CRS_t *CRS,int M,int N1);
 double **ortho_normalize(double **a,int M);//グラム-シュミットの直交化法
 void QR(double **A,int M,double **Q,double **R);//QR分解
 double *eigenvalue(double **A,int M);//M次正則行列の固有値
+
+void CRS_vector(CRS_t *CRS_v,double *a,int N1);
+void free_CRS_v(CRS_t *CRS,int M);
 
 
 //argument of (x[1],x[2]) in [0,2\pai) or -1 (the origin)
@@ -154,7 +162,6 @@ void free_dmatrix(double **a,int nr1,int nr2,int nl1,int nl2){
   return;
 }
 
-
 int **imatrix(int nr1,int nr2,int nl1,int nl2){
   int i, nrow, ncol;
   int **a; 
@@ -271,20 +278,43 @@ double *non_regular_product(double **a,int M1,int M2,double *b,int bl){//非正�
   return c;
 }
 
-double inner_product( int m, int n, double *a, double *b){
-  int i;
-  double s = 0.0;
-  for( i = m; i <= n; i++) s += a[i]*b[i];
-  return s;
+double inner_product(int m, int n, double *a, double *b){
+  CRS_t CRS_a;
+  CRS_vector(&CRS_a,a,n-m+1);
+  int *i_av=CRS_a.i_av;
+  double *A_v=CRS_a.A_v;
+
+  double sum=0.0;
+  for(int i=1;i<=CRS_a.M_v;i++){
+    sum+=A_v[i]*b[i_av[i]];
+  }
+
+  free_CRS_v(&CRS_a,n-m+1);
+  // int i;
+  // double s = 0.0;
+  // for( i = m; i <= n; i++) s += a[i]*b[i];
+  // return s;
+  return sum;
+  
 }
 
 //Lpノルム
 double vector_norm1( double *a, int m, int n,double p){
-  int i; 
-  double norm = 0.0;
-  for ( i = m; i <= n; i++ ){
-    norm += pow(fabs(a[i]),p);
+  CRS_t CRS_a;
+  CRS_vector(&CRS_a,a,n-m+1);
+  int *i_av=CRS_a.i_av;
+  double *A_v=CRS_a.A_v;
+
+  double norm=0.0;
+  for(int i=1;i<=CRS_a.M_v;i++){
+    norm+=pow(fabs(A_v[i]),p);
   }
+  free_CRS_v(&CRS_a,n-m+1);
+  // int i; 
+  // double norm = 0.0;
+  // for ( i = m; i <= n; i++ ){
+  //   norm += pow(fabs(a[i]),p);
+  // }
   return pow(norm,1/p); 
 }
 
@@ -439,7 +469,6 @@ void LU(double **Acoef,int M,double **L_r,double **U_r){//要素が行列のベ�
 }
 
 
-
 //LU分解
 double *LU_Decomp(double **L,double **U,double *B,int M){
   // printf("LU\n");
@@ -581,11 +610,9 @@ void normalize(double *y,int n,int m){
     }
 }
 
-/*===============疎行列格納形式=====================*/
-void CRS(CRS_t *CRS,double **A,int M,int M1){
-  //正方行列用の疎行列格納形式
-  // printf("Make CRS of Matrix A\n");
 
+/*===============疎行列格納形式=====================*/
+void CRS(CRS_t *CRS,double **A,int M,int M1){//正方行列用の疎行列格納形式
   CRS->M=M;//行列のサイズ
   int sta=1;
 
@@ -652,8 +679,49 @@ void CRS(CRS_t *CRS,double **A,int M,int M1){
     locate_ja+=a_l_j;//staから各行ごとに0でないものの個数分追加していく
   }
   *p_i=A_l+1;
-
 }
+
+void CRS_vector(CRS_t *CRS_v,double *a,int N1){
+  int sta=1;
+  
+  /*ベクトルの0でない要素の長さ*/
+  int al=0;
+  for(int i=sta;i<=sta+N1-1;i++){
+    if(a[i]!=0.0){
+      al+=1;
+    }
+  }
+  CRS_v->M_v=al;//non-zeroの要素数
+
+  // double *nonzero_value=dvector(sta,sta+al-1);//0でない値が入るベクトル
+  // int *nonzero_point=ivector(sta,sta+al);//0でない要素が入る位置
+
+  (CRS_v->A_v)=dvector(sta,sta+al-1);
+  (CRS_v->i_av)=ivector(sta,sta+al);
+
+  int loc=sta;
+  for(int i=sta;i<=sta+N1-1;i++){
+    if(a[i]!=0.0){
+      al+=1;
+      // nonzero_value[loc]=al[i];
+      // nonzero_point[loc]=i;
+      (CRS_v->A_v)[loc]=a[i];
+      (CRS_v->i_av)[loc]=i;
+      loc+=1;
+    }
+  }
+  (CRS_v->i_av)[loc]=N1+1;
+  // nonzero_point[loc]=al+1;
+}
+
+void free_CRS_v(CRS_t *CRS,int M){
+  int sta=1;
+  int A_l=CRS->M_v;//Nonzeroの要素数
+  // printf("\nCRS_free: start ....\n"); fflush(stdout);
+  free_dvector(CRS->A_v,sta,A_l);
+  free_ivector(CRS->i_av,sta,M+1);
+}
+
 
 void free_CRS(CRS_t *CRS,int M,int N1){
   int sta=1;
@@ -691,7 +759,6 @@ double *matrix_vector_product_CRS(double **A,double *x,int m,int n){//nは返り
 
   return ret;
 }
-
 
 double *CG_CRS(double **A,double *b,int M){//M次元正定値対称行列
   // CRS_t CRS_A;
@@ -979,5 +1046,4 @@ double *eigenvalue(double **A,int M){//M次正則行列の固有値
   free_dmatrix(Ri,sta,sta+M-1,sta,sta+M-1);
 
   return ret;
-
 }

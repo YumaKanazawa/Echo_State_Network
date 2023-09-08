@@ -1,6 +1,6 @@
 #include "functions.h"
 
-#define N 10//ネットワークサイズ
+#define N 2000//ネットワークサイズ
 #define T0 100//過渡時間
 #define Tr (5000+T0)//データの数
 #define Tl 800//評価用の時間
@@ -116,7 +116,6 @@ double **W(double a){
 
     return Sp;
 }
-
 
 double *Wout(double **M,int N1,int M1,double *T,double lambda){
     printf("Wout\n");

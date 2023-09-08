@@ -5,7 +5,7 @@ typedef double (* DF)(double t,double *x,double *y,double **W,int i,int n);//被
 typedef double** (* Jacobi)(double t,double *x,double *y,double **W,int n);//時刻tにおけるJacobi行列
 
 #define dt 0.01//時間ステップ
-#define Sym_L 100000.0//ALL_Length
+#define Sym_L 1.0//ALL_Length
 
 #define sigma 0.012
 //力学系はN次元
@@ -78,15 +78,18 @@ double *x_dt(DF df,double t,double *x,double *y,double **W,int n,double dt_1){
 double *Lyapunov_exponent(DF df,Jacobi J_l,double **W,double *y,int n){//n次元力学系のリアプノフ指数
     printf("リアプノフ指数の測定\n");
     double T=100.0;//Sym_L-1-num;
-
+    printf("riap\n");
     double *riap=dvector(1,n);//返すべきリアプノフ指数の値の格納
     
     //行列の微分方程式を解く
+    printf("X\n");
     double **X=I(1,n,1,n);//微分方程式の解となる行列(初期行列)
 
+    printf("x_init\n");
     double *x_sol=dvector(1,n);//元の常微分方程式の初期値
-    for(int i=1;i<=n;i++)x_sol[i]=0.0;//rand_z(-1.0,1.0)
+    // for(int i=1;i<=n;i++)x_sol[i]=0.0;//rand_z(-1.0,1.0)
 
+    printf("While\n");
     double t=0;
     while(1){
         printf("%f:",t);
@@ -105,12 +108,12 @@ double *Lyapunov_exponent(DF df,Jacobi J_l,double **W,double *y,int n){//n次元
 
                 double sum=0.0;//j列目の正規直交基底と元のベクトルの内積の和
                 for(int j=1;j<l;j++){
-                double *vj=dvector(1,n);//j列目(1<=j<l)の正規直交基底ベクトル
-                for(int i=1;i<=n;i++)vj[i]=W_orth[i][j];//正規直交基底の切り出し
-                double al_uj=inner_product(1,n,al,vj);//(al,vj)
-                
-                sum+=al_uj*vj[k];
-                free_dvector(vj,1,n);
+                    double *vj=dvector(1,n);//j列目(1<=j<l)の正規直交基底ベクトル
+                    for(int i=1;i<=n;i++)vj[i]=W_orth[i][j];//正規直交基底の切り出し
+                    double al_uj=inner_product(1,n,al,vj);//(al,vj)
+
+                    sum+=al_uj*vj[k];
+                    free_dvector(vj,1,n);
                 }
                 vl[k]=al[k]-sum;
             }
@@ -197,8 +200,6 @@ double *Lyapunov_exponent(DF df,Jacobi J_l,double **W,double *y,int n){//n次元
             }
         }
 
-        free_dmatrix(W_orth,1,n,1,n);
-
         free_dmatrix(K1,1,n,1,n);
         free_dmatrix(K2,1,n,1,n);
         free_dmatrix(K3,1,n,1,n);
@@ -242,6 +243,8 @@ double *Lyapunov_exponent(DF df,Jacobi J_l,double **W,double *y,int n){//n次元
         free_dvector(x_new,1,n);
         /*===============================*/
         t+=dt;
+
+        free_dmatrix(W_orth,1,n,1,n);
         printf("\n");
     }
 
