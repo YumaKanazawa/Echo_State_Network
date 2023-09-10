@@ -92,10 +92,12 @@ void free_dvector(double *a,int i,int j){
   if(i<=j){
     // free((double*)(a+i));
     free(a+i);
-  }else{
-    printf("Non Length!\n");
-    exit(1);
   }
+  // else{
+  //   printf("%d,%d\n",i,j);
+  //   printf("Non Length d!\n");
+  //   // exit(1);
+  // }
   a=NULL;
 }
 
@@ -114,10 +116,12 @@ int *ivector(int i,int j){
 void free_ivector(int *a,int i,int j){
   if(i!=j){
     free(a+i);
-  }else{
-    printf("Non Length!\n");
-    exit(1);
   }
+  // else{
+  //   printf("%d,%d\n",i,j);
+  //   printf("Non Length i!\n");
+  //   // exit(1);
+  // }
   a=NULL;
 }
 
@@ -329,7 +333,7 @@ int factorial(int n){
   if(n<=0){
     return 1;
   }
-    return n*factorial(n-1);
+  return n*factorial(n-1);
 }
 
 void pivod(double **A,double *b,int M){
@@ -603,7 +607,7 @@ double *CG(double **A,double *b,int M){//M次元正定値対称行列
 void normalize(double *y,int n,int m){
     /*ながさ1のベクトル*/
     double norm=vector_norm1(y,n,m,2.0);//ベクトルのノルム
-    if(norm!=0.0){
+    if(norm>0.0){
       for(int i=n;i<=m;i++)y[i]=y[i]/norm;
     }else{
       for(int i=n;i<=m;i++)y[i]=0.0;
@@ -733,7 +737,6 @@ void free_CRS(CRS_t *CRS,int M,int N1){
 }
 
 double *matrix_vector_product_CRS(double **A,double *x,int m,int n){//nは返り値ベクトルの次元，行列の縦の次元
-
   CRS_t CRS_A;
   CRS(&CRS_A,A,m,n);
   // double *a,int *ja,int *ia,
@@ -748,6 +751,7 @@ double *matrix_vector_product_CRS(double **A,double *x,int m,int n){//nは返り
   //i行目の成分はia[i]<k<ia[i+1]の間にある
   // printf("times Start\n");
   for(int col=sta;col<sta+m;col++){
+    // printf("col=%d\n",col);
     double sum=0.0;
     for(int k=ia[col];k<ia[col+1];k++){
       sum+=a[k]*x[ja[k]];
@@ -948,70 +952,114 @@ int rank(double **A,int M,int N){//行列の正則化
   return rank;
 }
 
-double **ortho_normalize(double **a,int M){//M次元の正規直交化．各列ベクトルが線形独立である必要あり．
-
+double **ortho_normalize(double **X,int M){//M次元の正規直交化．各列ベクトルが線形独立である必要あり．
   int sta=1;
-  double **Ret=dmatrix(sta,sta+M-1,sta,sta+M-1);
 
-  // int rank_A=rank(a,M,M);
-  // if(rank_A<M){
-  //   printf("rank=%d,M=%d\n",rank_A,M);
-  //   printf("Non Regular! Schmit is failed\n");
-  //   exit(1);
+  // double **Ret=dmatrix(sta,sta+M-1,sta,sta+M-1);
+
+  // // int rank_A=rank(a,M,M);
+  // // if(rank_A<M){
+  // //   printf("rank=%d,M=%d\n",rank_A,M);
+  // //   printf("Non Regular! Schmit is failed\n");
+  // //   exit(1);
+  // // }
+
+  // for(int l=sta;l<sta+M;l++){//l列目のベクトル，l番目の正規直交基底
+  //   // printf("l=%d\n",l);
+  //   double *al=dvector(sta,sta+M-1);//l列目のベクトルを切り出す．
+  //   for(int i=sta;i<sta+M;i++){
+  //     al[i]=a[i][l];
+  //   }
+
+  //   double *v=dvector(sta,sta+M-1);//正規直交基底の格納
+
+  //   for(int k=sta;k<sta+M;k++){//第k成分の参照
+
+  //     double sum=0.0;//Σ_{i=1}^{l-1}
+  //     for(int i=sta;i<l;i++){
+  //       double *ui=dvector(sta,sta+M);//i番目の正規直交基底
+  //       for(int j=sta;j<sta+M;j++)ui[j]=Ret[j][i];
+
+  //       double al_ui=inner_product(sta,sta+M-1,al,ui);//(al,ui)
+
+  //       double ui_norm=inner_product(sta,sta+M-1,ui,ui);//|ui|:=(ui,ui)
+
+  //       // if(ui_norm<pow(10,-10)){//線形従属の確認
+  //       //   printf("Non Regular! Schmit is failed\n");
+  //       //   exit(1);
+  //       // }
+
+  //       double ui_plus;
+  //       ui_plus=ui[k]*al_ui/ui_norm;
+
+  //       // printf("k=%d,i=%d,()/()=%f\n",k,i,ui_plus);
+
+  //       sum+=ui_plus;
+
+  //       free_dvector(ui,sta,sta+M);
+  //     }
+  //     // printf("sum=%f\n",sum);
+
+  //     v[k]=al[k]-sum;
+  //   }
+     
+  //   normalize(v,sta,sta+M-1);//ベクトルの正規化
+
+  //   for(int i=sta;i<sta+M;i++){
+  //     // printf("%f,",v[i]);
+  //     Ret[i][l]=v[i];
+  //   }
+  //   // printf("\n");
+
+  //   free_dvector(v,sta,sta+M-1);
+  //   free_dvector(al,sta,sta+M-1);
   // }
 
-  for(int l=sta;l<sta+M;l++){//l列目のベクトル，l番目の正規直交基底
-    // printf("l=%d\n",l);
-    double *al=dvector(sta,sta+M-1);//l列目のベクトルを切り出す．
-    for(int i=sta;i<sta+M;i++){
-      al[i]=a[i][l];
-    }
+  double **W_orth=dmatrix(sta,sta+M-1,sta,sta+M-1);
 
-    double *v=dvector(sta,sta+M-1);//正規直交基底の格納
+  /*------------------Step1 sta+(M/2)-1までを直交化する---------------*/
+  //L列目までを考える
+  //ベクトル行列積による計算
+  double **Q_s_i=dmatrix(sta,sta+M-1,sta,sta+M-1);//直交化済みのベクトルが入った行列
+  double **Q_S=dmatrix(sta,sta+M-1,sta,sta+M-1);//直交化済みと元ベクトルの内積計算
 
-    for(int k=sta;k<sta+M;k++){//第k成分の参照
+  for(int L=sta;L<=sta+M-1;L++){//sta+M-1までを直交化する
+    double *al=dvector(sta,sta+M-1);//直交化をするベクトルの切り出し
+    for(int i=sta;i<=sta+M-1;i++)al[i]=X[i][L];
 
-      double sum=0.0;//Σ_{i=1}^{l-1}
-      for(int i=sta;i<l;i++){
-        double *ui=dvector(sta,sta+M);//i番目の正規直交基底
-        for(int j=sta;j<sta+M;j++)ui[j]=Ret[j][i];
-
-        double al_ui=inner_product(sta,sta+M-1,al,ui);//(al,ui)
-
-        double ui_norm=inner_product(sta,sta+M-1,ui,ui);//|ui|:=(ui,ui)
-
-        // if(ui_norm<pow(10,-10)){//線形従属の確認
-        //   printf("Non Regular! Schmit is failed\n");
-        //   exit(1);
-        // }
-
-        double ui_plus;
-        ui_plus=ui[k]*al_ui/ui_norm;
-
-        // printf("k=%d,i=%d,()/()=%f\n",k,i,ui_plus);
-
-        sum+=ui_plus;
-
-        free_dvector(ui,sta,sta+M);
+    for(int i=sta;i<=sta+M-1;i++){
+      for(int j=sta;j<=L-1;j++){
+        Q_s_i[i][j]=W_orth[i][j];
       }
-      // printf("sum=%f\n",sum);
-
-      v[k]=al[k]-sum;
     }
-     
-    normalize(v,sta,sta+M-1);//ベクトルの正規化
+    double **Q_T=trans(Q_s_i,M,M);
+    
+    double *w=matrix_vector_product_CRS(Q_T,al,M,M);//内積計算
 
-    for(int i=sta;i<sta+M;i++){
-      // printf("%f,",v[i]);
-      Ret[i][l]=v[i];
-    }
-    // printf("\n");
+    double *q_hat=matrix_vector_product_CRS(Q_s_i,w,M,M);
 
-    free_dvector(v,sta,sta+M-1);
+    for(int i=sta;i<=sta+M-1;i++)Q_S[i][L]=q_hat[i];
+
+    for(int i=sta;i<=sta+M-1;i++)al[i]-=q_hat[i];
+    free_dvector(q_hat,sta,sta+M-1);
+
+    normalize(al,sta,sta+M-1);//ベクトルの正規化
+
+    for(int i=sta;i<=sta+M-1;i++)W_orth[i][L]=al[i];//正規直交基底の切り出し
+
+
+    free_dvector(w,sta,sta+M-1);
+    free_dmatrix(Q_T,sta,sta+M-1,sta,sta+M-1);
     free_dvector(al,sta,sta+M-1);
   }
+  /*----------------------------------------------------------------*/
+  // Q_Sには元のベクトルから引くべき行列を格納
 
-  return Ret;
+
+  free_dmatrix(Q_s_i,sta,sta+M-1,sta,sta+M-1); 
+  free_dmatrix(Q_S,sta,sta+M-1,sta,sta+M-1); 
+
+  return W_orth;
 }
 
 double *eigenvalue(double **A,int M){//M次正則行列の固有値
@@ -1039,8 +1087,6 @@ double *eigenvalue(double **A,int M){//M次正則行列の固有値
       ret[i]=Ri[i][i];//Rの対角成分に固有値が並ぶ
     }
   }
-
-  
 
   free_dmatrix(Qi,sta,sta+M-1,sta,sta+M-1);
   free_dmatrix(Ri,sta,sta+M-1,sta,sta+M-1);

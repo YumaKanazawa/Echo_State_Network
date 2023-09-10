@@ -5,7 +5,7 @@ typedef double (* DF)(double t,double *x,double *y,double **W,int i,int n);//被
 typedef double** (* Jacobi)(double t,double *x,double *y,double **W,int n);//時刻tにおけるJacobi行列
 
 #define dt 0.01//時間ステップ
-#define Sym_L 1.0//ALL_Length
+#define Sym_L 100000.0//ALL_Length
 
 #define sigma 0.012
 //力学系はN次元
@@ -92,51 +92,48 @@ double *Lyapunov_exponent(DF df,Jacobi J_l,double **W,double *y,int n){//n次元
     printf("While\n");
     double t=0;
     while(1){
-        printf("%f:",t);
+        printf("%f:",t);fflush(stdout);
         /*======リアプノフ指数の計算用のグラムシュミットの直交化===========*/
         //行列Xを正規直交化する．
 
         //グラムシュミットの直交化による各ベクトルの直交化
         double **W_orth=dmatrix(1,n,1,n);
 
-        for(int l=1;l<=n;l++){//l列目のベクトルを正規直交化
-            double *al=dvector(1,n);//正規直交化を施すベクトルの切り出し
-            for(int i=1;i<=n;i++)al[i]=X[i][l];//alに正規直交化を施すベクトルを格納，行列のl列目を切り出す
+        //L列目までを考える
+        //ベクトル行列積による計算
+        for(int L=1;L<=n;L++){
+            double *al=dvector(1,n);//直交化をするベクトルの切り出し
+            for(int i=1;i<=n;i++)al[i]=X[i][L];
 
-            double *vl=dvector(1,n);//l列目の正規直交基底を格納するベクトル
-            for(int k=1;k<=n;k++){//第k要素の参照
-
-                double sum=0.0;//j列目の正規直交基底と元のベクトルの内積の和
-                for(int j=1;j<l;j++){
-                    double *vj=dvector(1,n);//j列目(1<=j<l)の正規直交基底ベクトル
-                    for(int i=1;i<=n;i++)vj[i]=W_orth[i][j];//正規直交基底の切り出し
-                    double al_uj=inner_product(1,n,al,vj);//(al,vj)
-
-                    sum+=al_uj*vj[k];
-                    free_dvector(vj,1,n);
+            double **Q_s_i=dmatrix(1,n,1,n);
+            for(int i=1;i<=L-1;i++){
+                for(int j=1;j<=n;j++){
+                    Q_s_i[i][j]=W_orth[i][j];
                 }
-                vl[k]=al[k]-sum;
             }
-            //直交化の終了
+            double **Q_T=trans(Q_s_i,n,n);
+            
+            double *w=matrix_vector_product_CRS(Q_T,al,1,n);
 
-            double norm_l=sqrt(inner_product(1,n,vl,vl));//直交化のみをした際のベクトルの大きさ
+            double *q_hat=matrix_vector_product_CRS(Q_s_i,w,1,n);
+            for(int i=1;i<=n;i++)al[i]-=q_hat[i];
+            free_dvector(q_hat,1,n);
 
+            double norm_l=sqrt(inner_product(1,n,al,al));//直交化のみをした際のベクトルの大きさ
 
-            if(t>=T){//アトラクタが収束してから計算を施す．発散も0収束もしないような部分を足しこむ
-                // length[l]+=1;
-                //各方向のベクトルのノルムを計算する
-                riap[l]+=log(norm_l);//平均をとるSym_L-T
+            if(t>=T){
+                riap[L]=log(norm_l);
             }
-        
-            //ベクトルの正規化
-            normalize(vl,1,n);
 
-            for(int i=1;i<=n;i++)W_orth[i][l]=vl[i];//正規直交基底の切り出し
+            normalize(al,1,n);//ベクトルの正規化
 
+            for(int i=1;i<=n;i++)W_orth[i][L]=al[i];//正規直交基底の切り出し
+
+            free_dvector(w,1,n);
+            free_dmatrix(Q_T,1,n,1,n);
+            free_dmatrix(Q_s_i,1,n,1,n); 
             free_dvector(al,1,n);
-            free_dvector(vl,1,n);
         }
-        
         //W_orthは行列Xの正規直交化を施した行列
     
         /*==============行列の数値解X_{t+Δt}================*/
