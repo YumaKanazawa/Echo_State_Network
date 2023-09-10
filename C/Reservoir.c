@@ -96,44 +96,154 @@ double *Lyapunov_exponent(DF df,Jacobi J_l,double **W,double *y,int n){//n次元
         /*======リアプノフ指数の計算用のグラムシュミットの直交化===========*/
         //行列Xを正規直交化する．
 
-        //グラムシュミットの直交化による各ベクトルの直交化
-        double **W_orth=dmatrix(1,n,1,n);
+        // //グラムシュミットの直交化による各ベクトルの直交化
+        // double **W_orth=dmatrix(1,n,1,n);
 
-        //L列目までを考える
+        // //L列目までを考える
+        // //ベクトル行列積による計算
+        // for(int L=1;L<=n;L++){
+        //     double *al=dvector(1,n);//直交化をするベクトルの切り出し
+        //     for(int i=1;i<=n;i++)al[i]=X[i][L];
+
+        //     double **Q_s_i=dmatrix(1,n,1,n);//直交化したベクトルのL個目までを格納した行列
+        //     for(int i=1;i<=n;i++){
+        //         for(int j=1;j<=L-1;j++){
+        //             Q_s_i[i][j]=W_orth[i][j];
+        //         }
+        //     }
+        //     double **Q_T=trans(Q_s_i,n,n);
+            
+        //     double *w=matrix_vector_product_CRS(Q_T,al,1,n);
+
+        //     double *q_hat=matrix_vector_product_CRS(Q_s_i,w,1,n);
+        //     for(int i=1;i<=n;i++)al[i]-=q_hat[i];
+        //     free_dvector(q_hat,1,n);
+
+        //     double norm_l=sqrt(inner_product(1,n,al,al));//直交化のみをした際のベクトルの大きさ
+
+        //     if(t>=T){
+        //         riap[L]+=log(norm_l);
+        //     }
+
+        //     normalize(al,1,n);//ベクトルの正規化
+
+        //     for(int i=1;i<=n;i++)W_orth[i][L]=al[i];//正規直交基底の切り出し
+
+        //     free_dvector(w,1,n);
+        //     free_dmatrix(Q_T,1,n,1,n);
+        //     free_dmatrix(Q_s_i,1,n,1,n); 
+        //     free_dvector(al,1,n);
+        // }
+        int sta=1,M=n;
+
+        double **W_orth=dmatrix(sta,sta+M-1,sta,sta+M-1);
+        /*------------------Step1 sta+(M/2)-1までを直交化する---------------*/
+        // int P=sta+(M/2)-1;
+
+        int P=sta+M-1;
+        //P列目までを考える
         //ベクトル行列積による計算
-        for(int L=1;L<=n;L++){
-            double *al=dvector(1,n);//直交化をするベクトルの切り出し
-            for(int i=1;i<=n;i++)al[i]=X[i][L];
+        double **Q_s_i=dmatrix(sta,sta+M-1,sta,sta+M-1);//直交化済みのベクトルが入った行列
 
-            double **Q_s_i=dmatrix(1,n,1,n);
-            for(int i=1;i<=L-1;i++){
-                for(int j=1;j<=n;j++){
+        for(int L=sta;L<=P;L++){//sta+(M/2)-1までを直交化する
+            // printf("%d\n",L);
+            double *al=dvector(sta,sta+M-1);//直交化をするベクトルの切り出し
+            for(int i=sta;i<=sta+M-1;i++)al[i]=X[i][L];//L列目を切り出し
+
+            for(int i=sta;i<=sta+M-1;i++){//直交化したベクトルの格納，L-1までのベクトルを格納
+                for(int j=sta;j<=L-1;j++){
                     Q_s_i[i][j]=W_orth[i][j];
                 }
             }
-            double **Q_T=trans(Q_s_i,n,n);
-            
-            double *w=matrix_vector_product_CRS(Q_T,al,1,n);
 
-            double *q_hat=matrix_vector_product_CRS(Q_s_i,w,1,n);
-            for(int i=1;i<=n;i++)al[i]-=q_hat[i];
-            free_dvector(q_hat,1,n);
+            double **Q_T=trans(Q_s_i,M,M);//直交化したベクトルの転置行列
+            double *w=matrix_vector_product_CRS(Q_T,al,M,M);//内積計算
 
-            double norm_l=sqrt(inner_product(1,n,al,al));//直交化のみをした際のベクトルの大きさ
+            double *q_hat=matrix_vector_product_CRS(Q_s_i,w,M,M);
 
+            for(int i=sta;i<=sta+M-1;i++)al[i]-=q_hat[i];
+            free_dvector(q_hat,sta,sta+M-1);
+
+            double norm_l=vector_norm1(al,sta,sta+M-1,2.0);
             if(t>=T){
-                riap[L]=log(norm_l);
+                riap[L]+=log(norm_l);
             }
 
-            normalize(al,1,n);//ベクトルの正規化
+            normalize(al,sta,sta+M-1);//ベクトルの正規化
 
-            for(int i=1;i<=n;i++)W_orth[i][L]=al[i];//正規直交基底の切り出し
+            for(int i=sta;i<=sta+M-1;i++)W_orth[i][L]=al[i];//正規直交基底の切り出し
 
-            free_dvector(w,1,n);
-            free_dmatrix(Q_T,1,n,1,n);
-            free_dmatrix(Q_s_i,1,n,1,n); 
-            free_dvector(al,1,n);
+            free_dvector(w,sta,sta+M-1);
+            free_dmatrix(Q_T,sta,sta+M-1,sta,sta+M-1);
+
+            free_dvector(al,sta,sta+M-1);
+
+            //Q_S_iに直交化済みのベクトル全てを格納する
+            if(L==P){
+                for(int i=sta;i<=sta+M-1;i++)Q_s_i[i][L]=W_orth[i][L];
+            }
         }
+        /*----------------------------------------------------------------*/
+        //Q_S_iにはsta~P-1までの直交化済みのベクトルが入った行列
+        /*-------------------------step2 行列積を用いたグラムシュミットの直交化法-----------------------------*/
+
+        
+        double **A_res=dmatrix(sta,sta+M-1,sta,sta+M-1);//直交化が施されていないベクトルをまとめた行列(P+1~Last)
+        for(int i=sta;i<=sta+M-1;i++){
+            for(int j=P+1;j<=sta+M-1;j++){
+                A_res[i][j]=X[i][j];
+            }
+        }
+
+        double **Q_T=trans(Q_s_i,M,M);//Q_s_iはP列目までの直交化が済んだもの
+        double **Product_matrix=AB(Q_T,M,M,A_res,M,M);//直交化が済んでいないベクトルと直交ベクトルとの内積
+        double **Matrix_minus=AB(Q_s_i,M,M,Product_matrix,M,M);
+        for(int i=sta;i<=sta+M-1;i++){
+            for(int j=sta;j<=sta+M-1;j++){
+                A_res[i][j]-=Matrix_minus[i][j];
+            }
+        }
+
+
+        //A_resの各方向を正規化する
+        for(int L=P+1;L<=sta+M-1;L++){
+            double *al=dvector(sta,sta+M-1);//直交化をするベクトルの切り出し
+            for(int i=sta;i<=sta+M-1;i++)al[i]=A_res[i][L];//L列目を切り出し
+            
+            double **Q_s_i_1=dmatrix(sta,sta+M-1,sta,sta+M-1);//L列目以降の直交化済みのベクトルを格納
+            for(int i=sta;i<=sta+M-1;i++){
+                for(int j=P+1;j<=L-1;j++){
+                    Q_s_i_1[i][j]=W_orth[i][j];//Q_i_sに直交化済みのベクトルを格納
+                }
+            }
+
+            double **Q_1_T=trans(Q_s_i_1,M,M);
+
+            double *w=matrix_vector_product_CRS(Q_1_T,al,M,M);
+            double *w1=matrix_vector_product_CRS(Q_s_i_1,w,M,M);
+            for(int i=sta;i<=sta+M-1;i++)al[i]-=w1[i];
+
+            free_dvector(w1,sta,sta+M-1);
+            free_dvector(w,sta,sta+M-1);
+            free_dmatrix(Q_1_T,sta,sta+M-1,sta,sta+M-1);
+            free_dmatrix(Q_s_i_1,sta,sta+M-1,sta,sta+M-1);
+
+            double norm_l=vector_norm1(al,sta,sta+M-1,2.0);
+            if(t>=T){
+                riap[L]+=log(norm_l);
+            }
+
+            normalize(al,sta,sta+M-1);
+
+            for(int i=sta;i<=sta+M-1;i++)W_orth[i][L]=al[i];//正規直交基底の切り出し
+            free_dvector(al,sta,sta+M-1);
+        }  
+
+        free_dmatrix(Matrix_minus,sta,sta+M-1,sta,sta+M-1);
+        free_dmatrix(Product_matrix,sta,sta+M-1,sta,sta+M-1);
+        free_dmatrix(Q_T,sta,sta+M-1,sta,sta+M-1);
+        free_dmatrix(A_res,sta,sta+M-1,sta,sta+M-1);
+        free_dmatrix(Q_s_i,sta,P,sta,sta+M-1); 
         //W_orthは行列Xの正規直交化を施した行列
     
         /*==============行列の数値解X_{t+Δt}================*/
@@ -256,12 +366,49 @@ double *Lyapunov_exponent(DF df,Jacobi J_l,double **W,double *y,int n){//n次元
 #define lam 0.0//リッジ回帰のパラメータ
 
 int main(void){
-    double *y=dvector(1,ALL_Length);
-    for(int i=1;i<=ALL_Length;i++)y[i]=sin(0.01*i);
-    double **W_rec=W(rho);
-    double *lambda=Lyapunov_exponent(r,J,W_rec,y,N);
+    // double *y=dvector(1,ALL_Length);
+    // for(int i=1;i<=ALL_Length;i++)y[i]=sin(0.01*i);
+    // double **W_rec=W(rho);
+    // double *lambda=Lyapunov_exponent(r,J,W_rec,y,N);
 
-    free_dvector(lambda,1,N);
-    free_dvector(y,1,ALL_Length);
+    // free_dvector(lambda,1,N);
+    // free_dvector(y,1,ALL_Length);
+
+    time_t sta_time,end_time;
+
+
+    int n=N;
+    double **A=dmatrix(1,n,1,n);
+    for(int i=1;i<=n;i++){
+        for(int j=1;j<=n;j++){
+            A[i][j]=i+j%i;
+        }
+    }
+
+    sta_time=time(NULL);
+
+    double **ortho=ortho_normalize(A,n);
+
+    end_time=time(NULL);
+
+    printf("\nA=\n");
+    for(int i=1;i<=n;i++){
+        for(int j=1;j<=n;j++){
+            printf("%f ",A[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\nOrtho=\n");
+    for(int i=1;i<=n;i++){
+        for(int j=1;j<=n;j++){
+            printf("%f ",ortho[i][j]);
+        }
+        printf("\n");
+    }
+    free_dmatrix(ortho,1,n,1,n);
+    free_dmatrix(A,1,n,1,n);
+
+
+    printf("%f",(end_time-sta_time)/60.0);
     return 0;
 }

@@ -215,7 +215,7 @@ double *matrix_vector_product(double **a, double *b ,int n){//正方行列Aと�
   return c;
 }
 
-double **trans(double **A,int n,int m){
+double **trans(double **A,int n,int m){//n,m行列を返す
   double **At=dmatrix(1,n,1,m);
   for(int i=1;i<=n;i++){
     for(int j=1;j<=m;j++){
@@ -736,7 +736,7 @@ void free_CRS(CRS_t *CRS,int M,int N1){
   free_ivector(CRS->ja,sta,A_l);
 }
 
-double *matrix_vector_product_CRS(double **A,double *x,int m,int n){//nは返り値ベクトルの次元，行列の縦の次元
+double *matrix_vector_product_CRS(double **A,double *x,int m,int n){//nは返り値ベクトルの次元，行列の縦の次元(行列の型)
   CRS_t CRS_A;
   CRS(&CRS_A,A,m,n);
   // double *a,int *ja,int *ia,
@@ -1016,29 +1016,29 @@ double **ortho_normalize(double **X,int M){//M次元の正規直交化．各列�
   // }
 
   double **W_orth=dmatrix(sta,sta+M-1,sta,sta+M-1);
-
   /*------------------Step1 sta+(M/2)-1までを直交化する---------------*/
-  //L列目までを考える
+  int P=sta+(M/2)-1;
+
+  // int P=sta+M-1;
+  //P列目までを考える
   //ベクトル行列積による計算
   double **Q_s_i=dmatrix(sta,sta+M-1,sta,sta+M-1);//直交化済みのベクトルが入った行列
-  double **Q_S=dmatrix(sta,sta+M-1,sta,sta+M-1);//直交化済みと元ベクトルの内積計算
 
-  for(int L=sta;L<=sta+M-1;L++){//sta+M-1までを直交化する
+  for(int L=sta;L<=P;L++){//sta+(M/2)-1までを直交化する
+    // printf("%d\n",L);
     double *al=dvector(sta,sta+M-1);//直交化をするベクトルの切り出し
-    for(int i=sta;i<=sta+M-1;i++)al[i]=X[i][L];
+    for(int i=sta;i<=sta+M-1;i++)al[i]=X[i][L];//L列目を切り出し
 
-    for(int i=sta;i<=sta+M-1;i++){
+    for(int i=sta;i<=sta+M-1;i++){//直交化したベクトルの格納，L-1までのベクトルを格納
       for(int j=sta;j<=L-1;j++){
         Q_s_i[i][j]=W_orth[i][j];
       }
     }
-    double **Q_T=trans(Q_s_i,M,M);
-    
+
+    double **Q_T=trans(Q_s_i,M,M);//直交化したベクトルの転置行列
     double *w=matrix_vector_product_CRS(Q_T,al,M,M);//内積計算
 
     double *q_hat=matrix_vector_product_CRS(Q_s_i,w,M,M);
-
-    for(int i=sta;i<=sta+M-1;i++)Q_S[i][L]=q_hat[i];
 
     for(int i=sta;i<=sta+M-1;i++)al[i]-=q_hat[i];
     free_dvector(q_hat,sta,sta+M-1);
@@ -1047,17 +1047,83 @@ double **ortho_normalize(double **X,int M){//M次元の正規直交化．各列�
 
     for(int i=sta;i<=sta+M-1;i++)W_orth[i][L]=al[i];//正規直交基底の切り出し
 
-
     free_dvector(w,sta,sta+M-1);
     free_dmatrix(Q_T,sta,sta+M-1,sta,sta+M-1);
+
     free_dvector(al,sta,sta+M-1);
+
+    //Q_S_iに直交化済みのベクトル全てを格納する
+    if(L==P){
+      for(int i=sta;i<=sta+M-1;i++)Q_s_i[i][L]=W_orth[i][L];
+    }
   }
   /*----------------------------------------------------------------*/
-  // Q_Sには元のベクトルから引くべき行列を格納
+  //Q_S_iにはsta~P-1までの直交化済みのベクトルが入った行列
+
+  /*-------------------------step2 行列積を用いたグラムシュミットの直交化法-----------------------------*/
+  double **A_res=dmatrix(sta,sta+M-1,sta,sta+M-1);//直交化が施されていないベクトルをまとめた行列(P+1~Last)
+  for(int i=sta;i<=sta+M-1;i++){
+    for(int j=P+1;j<=sta+M-1;j++){
+      A_res[i][j]=X[i][j];
+    }
+  }
+
+  double **Q_T=trans(Q_s_i,M,M);//Q_s_iはP列目までの直交化が済んだもの
+  double **Product_matrix=AB(Q_T,M,M,A_res,M,M);//直交化が済んでいないベクトルと直交ベクトルとの内積
+  double **Matrix_minus=AB(Q_s_i,M,M,Product_matrix,M,M);
+  for(int i=sta;i<=sta+M-1;i++){
+    for(int j=sta;j<=sta+M-1;j++){
+      A_res[i][j]-=Matrix_minus[i][j];
+    }
+  }
 
 
-  free_dmatrix(Q_s_i,sta,sta+M-1,sta,sta+M-1); 
-  free_dmatrix(Q_S,sta,sta+M-1,sta,sta+M-1); 
+  //A_resの各方向を正規化する
+  for(int L=P+1;L<=sta+M-1;L++){
+    double *al=dvector(sta,sta+M-1);//直交化をするベクトルの切り出し
+    for(int i=sta;i<=sta+M-1;i++)al[i]=A_res[i][L];//L列目を切り出し
+  
+    double **Q_s_i_1=dmatrix(sta,sta+M-1,sta,sta+M-1);//L列目以降の直交化済みのベクトルを格納
+    for(int i=sta;i<=sta+M-1;i++){
+      for(int j=P+1;j<=L-1;j++){
+        Q_s_i_1[i][j]=W_orth[i][j];//Q_i_sに直交化済みのベクトルを格納
+      }
+    }
+
+    double **Q_1_T=trans(Q_s_i_1,M,M);
+
+    double *w=matrix_vector_product_CRS(Q_1_T,al,M,M);
+    double *w1=matrix_vector_product_CRS(Q_s_i_1,w,M,M);
+    for(int i=sta;i<=sta+M-1;i++)al[i]-=w1[i];
+
+    free_dvector(w1,sta,sta+M-1);
+    free_dvector(w,sta,sta+M-1);
+    free_dmatrix(Q_1_T,sta,sta+M-1,sta,sta+M-1);
+    free_dmatrix(Q_s_i_1,sta,sta+M-1,sta,sta+M-1);
+
+    normalize(al,sta,sta+M-1);
+
+    for(int i=sta;i<=sta+M-1;i++)W_orth[i][L]=al[i];//正規直交基底の切り出し
+    free_dvector(al,sta,sta+M-1);
+  }  
+
+  free_dmatrix(Matrix_minus,sta,sta+M-1,sta,sta+M-1);
+  free_dmatrix(Product_matrix,sta,sta+M-1,sta,sta+M-1);
+  free_dmatrix(Q_T,sta,sta+M-1,sta,sta+M-1);
+  free_dmatrix(A_res,sta,sta+M-1,sta,sta+M-1);
+  free_dmatrix(Q_s_i,sta,P,sta,sta+M-1); 
+
+
+  // double **W_T=trans(W_orth,M,M);
+  // double **WTW=AB(W_T,M,M,W_orth,M,M);
+  // for(int i=sta;i<=sta+M-1;i++){
+  //   for(int j=sta;j<=sta+M-1;j++){
+  //     printf("%f ",WTW[i][j]);
+  //   }
+  //   printf("\n");
+  // }
+  // free_dmatrix(WTW,sta,sta+M-1,sta,sta+M-1);
+  // free_dmatrix(W_T,sta,sta+M-1,sta,sta+M-1);
 
   return W_orth;
 }

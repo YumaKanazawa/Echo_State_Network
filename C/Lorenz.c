@@ -73,51 +73,158 @@ double *Lyapunov_exponent(ODE_Sol df,Jacobi J_l,int n){//n次元力学系のリ�
 
   double t=0;
   while(1){
+    printf("%f:",t);fflush(stdout);
     /*======リアプノフ指数の計算用のグラムシュミットの直交化===========*/
     //行列Xを正規直交化する．
 
-    //グラムシュミットの直交化による各ベクトルの直交化
-    double **W_orth=dmatrix(1,n,1,n);
+    // //グラムシュミットの直交化による各ベクトルの直交化
+    // double **W_orth=dmatrix(1,n,1,n);
 
-    for(int l=1;l<=n;l++){//l列目のベクトルを正規直交化
-      double *al=dvector(1,n);//正規直交化を施すベクトルの切り出し
-      for(int i=1;i<=n;i++)al[i]=X[i][l];//alに正規直交化を施すベクトルを格納，行列のl列目を切り出す
+    // //L列目までを考える
+    // //ベクトル行列積による計算
+    // for(int L=1;L<=n;L++){
+    //   double *al=dvector(1,n);//直交化をするベクトルの切り出し
+    //   for(int i=1;i<=n;i++)al[i]=X[i][L];
 
-      double *vl=dvector(1,n);//l列目の正規直交基底を格納するベクトル
-      for(int k=1;k<=n;k++){//第k要素の参照
+    //   double **Q_s_i=dmatrix(1,n,1,n);
+    //   for(int i=1;i<=n;i++){
+    //     for(int j=1;j<L;j++){
+    //       Q_s_i[i][j]=W_orth[i][j];
+    //     }
+    //   }
+    //   double **Q_T=trans(Q_s_i,n,n);
+      
+    //   double *w=matrix_vector_product_CRS(Q_T,al,n,n);
 
-        double sum=0.0;//j列目の正規直交基底と元のベクトルの内積の和
-        for(int j=1;j<l;j++){
-          double *vj=dvector(1,n);//j列目(1<=j<l)の正規直交基底ベクトル
-          for(int i=1;i<=n;i++)vj[i]=W_orth[i][j];//正規直交基底の切り出し
-          double al_uj=inner_product(1,n,al,vj);//(al,vj)
-          
-          sum+=al_uj*vj[k];
-          free_dvector(vj,1,n);
+    //   double *q_hat=matrix_vector_product_CRS(Q_s_i,w,n,n);
+    //   for(int i=1;i<=n;i++)al[i]-=q_hat[i];
+    //   free_dvector(q_hat,1,n);
+
+    //   double norm_l=sqrt(inner_product(1,n,al,al));//直交化のみをした際のベクトルの大きさ
+
+    //   if(t>=T){
+    //     riap[L]+=log(norm_l);
+    //   }
+
+    //   normalize(al,1,n);//ベクトルの正規化
+
+    //   for(int i=1;i<=n;i++)W_orth[i][L]=al[i];//正規直交基底の切り出し
+
+    //   free_dvector(w,1,n);
+    //   free_dmatrix(Q_T,1,n,1,n);
+    //   free_dmatrix(Q_s_i,1,n,1,n); 
+    //   free_dvector(al,1,n);
+    // }
+    int sta=1,M=n;
+
+    double **W_orth=dmatrix(sta,sta+M-1,sta,sta+M-1);
+    /*------------------Step1 sta+(M/2)-1までを直交化する---------------*/
+    int P=sta+(M/2)-1;
+
+    // int P=sta+M-1;
+    //P列目までを考える
+    //ベクトル行列積による計算
+    double **Q_s_i=dmatrix(sta,sta+M-1,sta,sta+M-1);//直交化済みのベクトルが入った行列
+
+    for(int L=sta;L<=P;L++){//sta+(M/2)-1までを直交化する
+      // printf("%d\n",L);
+      double *al=dvector(sta,sta+M-1);//直交化をするベクトルの切り出し
+      for(int i=sta;i<=sta+M-1;i++)al[i]=X[i][L];//L列目を切り出し
+
+      for(int i=sta;i<=sta+M-1;i++){//直交化したベクトルの格納，L-1までのベクトルを格納
+        for(int j=sta;j<=L-1;j++){
+          Q_s_i[i][j]=W_orth[i][j];
         }
-        vl[k]=al[k]-sum;
       }
-      //直交化の終了
 
-      double norm_l=sqrt(inner_product(1,n,vl,vl));//直交化のみをした際のベクトルの大きさ
+      double **Q_T=trans(Q_s_i,M,M);//直交化したベクトルの転置行列
+      double *w=matrix_vector_product_CRS(Q_T,al,M,M);//内積計算
 
+      double *q_hat=matrix_vector_product_CRS(Q_s_i,w,M,M);
 
-      if(t>=T){//アトラクタが収束してから計算を施す．発散も0収束もしないような部分を足しこむ
-        // length[l]+=1;
-        //各方向のベクトルのノルムを計算する
-        riap[l]+=log(norm_l);//平均をとるSym_L-T
+      for(int i=sta;i<=sta+M-1;i++)al[i]-=q_hat[i];
+      free_dvector(q_hat,sta,sta+M-1);
+
+      double norm_l=vector_norm1(al,sta,sta+M-1,2.0);
+      if(t>=T){
+        riap[L]+=log(norm_l);
       }
-  
-      //ベクトルの正規化
-      normalize(vl,1,n);
 
-      for(int i=1;i<=n;i++)W_orth[i][l]=vl[i];//正規直交基底の切り出し
+      normalize(al,sta,sta+M-1);//ベクトルの正規化
 
-      free_dvector(al,1,n);
-      free_dvector(vl,1,n);
+      for(int i=sta;i<=sta+M-1;i++)W_orth[i][L]=al[i];//正規直交基底の切り出し
+
+      free_dvector(w,sta,sta+M-1);
+      free_dmatrix(Q_T,sta,sta+M-1,sta,sta+M-1);
+
+      free_dvector(al,sta,sta+M-1);
+
+      //Q_S_iに直交化済みのベクトル全てを格納する
+      if(L==P){
+        for(int i=sta;i<=sta+M-1;i++)Q_s_i[i][L]=W_orth[i][L];
+      }
     }
+    /*----------------------------------------------------------------*/
+    //Q_S_iにはsta~P-1までの直交化済みのベクトルが入った行列
+
+    /*-------------------------step2 行列積を用いたグラムシュミットの直交化法-----------------------------*/
+    double **A_res=dmatrix(sta,sta+M-1,sta,sta+M-1);//直交化が施されていないベクトルをまとめた行列(P+1~Last)
+    for(int i=sta;i<=sta+M-1;i++){
+      for(int j=P+1;j<=sta+M-1;j++){
+        A_res[i][j]=X[i][j];
+      }
+    }
+
+    double **Q_T=trans(Q_s_i,M,M);//Q_s_iはP列目までの直交化が済んだもの
+    double **Product_matrix=AB(Q_T,M,M,A_res,M,M);//直交化が済んでいないベクトルと直交ベクトルとの内積
+    double **Matrix_minus=AB(Q_s_i,M,M,Product_matrix,M,M);
+    for(int i=sta;i<=sta+M-1;i++){
+      for(int j=sta;j<=sta+M-1;j++){
+        A_res[i][j]-=Matrix_minus[i][j];
+      }
+    }
+
+
+    //A_resの各方向を正規化する
+    for(int L=P+1;L<=sta+M-1;L++){
+      double *al=dvector(sta,sta+M-1);//直交化をするベクトルの切り出し
+      for(int i=sta;i<=sta+M-1;i++)al[i]=A_res[i][L];//L列目を切り出し
     
-    //W_orthは行列Xの正規直交化を施した行列
+      double **Q_s_i_1=dmatrix(sta,sta+M-1,sta,sta+M-1);//L列目以降の直交化済みのベクトルを格納
+      for(int i=sta;i<=sta+M-1;i++){
+        for(int j=P+1;j<=L-1;j++){
+          Q_s_i_1[i][j]=W_orth[i][j];//Q_i_sに直交化済みのベクトルを格納
+        }
+      }
+
+      double **Q_1_T=trans(Q_s_i_1,M,M);
+
+      double *w=matrix_vector_product_CRS(Q_1_T,al,M,M);
+      double *w1=matrix_vector_product_CRS(Q_s_i_1,w,M,M);
+      for(int i=sta;i<=sta+M-1;i++)al[i]-=w1[i];
+
+      free_dvector(w1,sta,sta+M-1);
+      free_dvector(w,sta,sta+M-1);
+      free_dmatrix(Q_1_T,sta,sta+M-1,sta,sta+M-1);
+      free_dmatrix(Q_s_i_1,sta,sta+M-1,sta,sta+M-1);
+
+      double norm_l=vector_norm1(al,sta,sta+M-1,2.0);
+      if(t>=T){
+        riap[L]+=log(norm_l);
+      }
+
+      normalize(al,sta,sta+M-1);
+
+      for(int i=sta;i<=sta+M-1;i++)W_orth[i][L]=al[i];//正規直交基底の切り出し
+      free_dvector(al,sta,sta+M-1);
+    }  
+
+    free_dmatrix(Matrix_minus,sta,sta+M-1,sta,sta+M-1);
+    free_dmatrix(Product_matrix,sta,sta+M-1,sta,sta+M-1);
+    free_dmatrix(Q_T,sta,sta+M-1,sta,sta+M-1);
+    free_dmatrix(A_res,sta,sta+M-1,sta,sta+M-1);
+    free_dmatrix(Q_s_i,sta,P,sta,sta+M-1); 
+
   
     /*==============行列の数値解X_{t+Δt}================*/
     /*======行列微分方程式をここで解く===========*/
@@ -180,8 +287,6 @@ double *Lyapunov_exponent(ODE_Sol df,Jacobi J_l,int n){//n次元力学系のリ�
       }
     }
 
-    free_dmatrix(W_orth,1,n,1,n);
-
     free_dmatrix(K1,1,n,1,n);
     free_dmatrix(K2,1,n,1,n);
     free_dmatrix(K3,1,n,1,n);
@@ -204,7 +309,7 @@ double *Lyapunov_exponent(ODE_Sol df,Jacobi J_l,int n){//n次元力学系のリ�
       double sum_riap=0.0;
       for(int i=1;i<=n;i++)sum_riap+=riap[i]/(t-T+1);
 
-      printf("%f:",t);
+      // printf("%f:",t);
       for(int i=1;i<=n;i++){
         printf("%f,",riap[i]/(t-T+1));
       }
@@ -227,6 +332,8 @@ double *Lyapunov_exponent(ODE_Sol df,Jacobi J_l,int n){//n次元力学系のリ�
     /*===============================*/
 
     t+=dt;
+    free_dmatrix(W_orth,1,n,1,n);
+    printf("\n");
   }
   fclose(fp);
 
