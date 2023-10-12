@@ -1,0 +1,11 @@
+//Burgers方程式
+real a=-1.0,b=1.0;//領域の区間[a,b]
+int domain=1;
+border ba(t=a,b){x = t; y = 0.0; label = domain;};
+meshL Th=buildmeshL(ba(1000));
+
+//有限要素空間の作成
+fespace Vh(Th,P1);
+Vh u,up,v;
+
+problem burgers(u,up,v,solver=UMFPACK)=int1d(Th)(u*v+dt*nu*(dx(u)*dx(v)))-int1d(Th)(convect(up,-dt,up)*v)+on(domain,u=1.0);
